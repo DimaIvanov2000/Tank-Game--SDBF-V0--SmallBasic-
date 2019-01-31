@@ -1,0 +1,437 @@
+'Constants (Can be tampered with)
+windowX=1280
+windowY=720
+tankSpriteScaleUp=2
+acceleration=2
+friction=1
+tankRadius=16 'based on sprite
+spriteSizeX=32
+spriteSizeY=32
+speedCap=10
+tickDelay=20
+reloadTime=4
+bulletSpeed=30
+bulletCheckRate=1
+numBullets=300
+tankHealth=3
+damageCooldownTime=100
+
+boss1ScaleUp=2
+boss1Radius=32 'sprite based
+boss1SpeedCap=30
+boss1TotalHealth=1200
+boss1SpawnTime=300
+
+'Used Variables
+wPressed=0
+aPressed=0
+sPressed=0
+dPressed=0
+mouseClicked=0
+
+ax=0
+ay=0
+vx=0
+vy=0
+px=windowX/2
+py=4*windowY/5
+tr=0
+rC=0
+reload=0
+miscCounter=0
+bulletNum=0
+bulletAccCoeff=0
+'bulletsExist array stores all player bullets
+damageCooldown=0
+
+b1r=0
+b1px=windowX/2
+b1py=windowY/5
+b1vx=0
+b1vy=0
+b1ax=0
+b1ay=0
+'enemyOrbsExist Array stores enemyOrbsExist orbs
+orbNum=0
+phase=1
+boss1Health=boss1TotalHealth
+boss1SpawnTimer=boss1SpawnTime
+
+'Setup
+
+bossMusic1=Program.Directory+"\audio\bossFight1.mp3"
+'Sound.Play(bossMusic1)
+bossMusic2=Program.Directory+"\audio\bossFight2.mp3"
+'Sound.Play(bossMusic2)
+
+death=Program.Directory+"\audio\deathSound2.mp3"
+'hit=Program.Directory+"\audio\hitSound.mp3"
+
+GraphicsWindow.Width=windowX
+GraphicsWindow.Height=windowY
+GraphicsWindow.CanResize=0
+
+baseIm=Program.Directory+"\images\tankBaseTrans.png"
+turretIm=Program.Directory+"\images\tankTurretTrans.png"
+turretFIm=Program.Directory+"\images\tankTurretFiringTrans.png"
+turretRIm=Program.Directory+"\images\tankTurretReloadTrans.png"
+bulletIm=Program.Directory+"\images\tankBulletTrans.png"
+bossPhases[1]=Program.Directory+"\images\boss1-2\base1.png"
+bossPhases[2]=Program.Directory+"\images\boss1-2\base2.png"
+bossPhases[3]=Program.Directory+"\images\boss1-2\base3.png"
+bossPhases[4]=Program.Directory+"\images\boss1-2\base4.png"
+lightning1Im=Program.Directory+"\images\boss1LightningTrans.png"
+orb1Im=Program.Directory+"\images\orb1Trans.png"
+
+base=Shapes.AddImage(baseIm)
+Shapes.Zoom(base,tankSpriteScaleUp,tankSpriteScaleUp)
+turret=Shapes.AddImage(turretIm)
+Shapes.Zoom(turret,tankSpriteScaleUp,tankSpriteScaleUp)
+turretF=Shapes.AddImage(turretFIm)
+Shapes.Zoom(turretF,tankSpriteScaleUp,tankSpriteScaleUp)
+turretR=Shapes.AddImage(turretRIm)
+Shapes.Zoom(turretR,tankSpriteScaleUp,tankSpriteScaleUp)
+boss1=Shapes.AddImage(bossPhases[1])
+Shapes.Zoom(boss1,boss1ScaleUp,boss1ScaleUp)
+Shapes.SetOpacity(boss1,0)
+lightning1=Shapes.AddImage(lightning1Im)
+Shapes.Zoom(lightning1,boss1ScaleUp,boss1ScaleUp)
+Shapes.HideShape(lightning1)
+
+Shapes.Move(boss1,b1px-boss1Radius,b1py-boss1Radius)
+
+Shapes.Move(base,px-(spriteSizeX/2),py-(spriteSizeY/2))
+Shapes.Move(turret,px-(spriteSizeX/2),py-(spriteSizeY/2))
+Shapes.Move(turretF,px-(spriteSizeX/2),py-(spriteSizeY/2))
+Shapes.Move(turretR,px-(spriteSizeX/2),py-(spriteSizeY/2))
+
+Shapes.SetOpacity(turretF,0)
+Shapes.SetOpacity(turretR,0)
+
+'Spawn Loop
+While boss1SpawnTimer>0
+  
+  GraphicsWindow.KeyUp=kUp
+  GraphicsWindow.KeyDown=kDown
+  GraphicsWindow.MouseUp=mUp
+  GraphicsWindow.MouseDown=mDown
+  
+  Shapes.SetOpacity(boss1,100-(100*boss1SpawnTimer/boss1SpawnTime))
+  
+  b1r=3*phase+b1r+6
+  If b1r=360 Then
+    b1r=0
+  EndIf
+  Shapes.Rotate(boss1,b1r)
+  
+  If px-GraphicsWindow.MouseX=0 Then
+    If py-GraphicsWindow.MouseY>0 Then
+      tr=90
+    Else
+      tr=270
+    EndIf
+  ElseIf py-GraphicsWindow.MouseY=0 Then
+    If px-GraphicsWindow.MouseX>0 Then
+      tr=0
+    Else
+      tr=180
+    EndIf
+  Else
+    tr=90-90*(px-GraphicsWindow.MouseX)/Math.Abs(px-GraphicsWindow.MouseX)+((px-GraphicsWindow.MouseX)/Math.Abs(px-GraphicsWindow.MouseX)*((py-GraphicsWindow.MouseY)/Math.Abs(py-GraphicsWindow.MouseY)*Math.GetDegrees(Math.ArcTan(Math.Abs(py-GraphicsWindow.MouseY)/Math.Abs(px-GraphicsWindow.MouseX)))))
+  EndIf
+
+  Shapes.Rotate(turret,tr)
+  Shapes.Rotate(turretF,tr)
+  Shapes.Rotate(turretR,tr)
+  
+  boss1SpawnTimer=boss1SpawnTimer-1
+  
+  Program.Delay(tickDelay)
+  
+EndWhile
+
+'Main loop
+While boss1Health>0 And tankHealth>0
+
+GraphicsWindow.KeyUp=kUp
+GraphicsWindow.KeyDown=kDown
+GraphicsWindow.MouseUp=mUp
+GraphicsWindow.MouseDown=mDown
+
+b1vx=b1vx+b1ax+(Math.Power(1.26,phase-1)*(px-b1px)/2000)
+b1vy=b1vy+b1ay+(Math.Power(1.26,phase-1)*(py-b1py)/2000)
+
+'b1vx=b1vx+2/Math.SquareRoot(Math.Power(b1px-px,2)+Math.Power(b1py-py,2))*(px-b1px)
+'b1vy=b1vy+2/Math.SquareRoot(Math.Power(b1px-px,2)+Math.Power(b1py-py,2))*(py-b1py)
+
+If Math.Abs(b1vx)>boss1SpeedCap Then
+  b1vx=boss1SpeedCap*Math.Abs(b1vx)/b1vx
+EndIf
+If Math.Abs(b1vy)>boss1SpeedCap Then
+  b1vy=boss1SpeedCap*Math.Abs(b1vy)/b1vy
+EndIf
+
+b1px=b1px+b1vx
+b1py=b1py+b1vy
+
+If b1px+boss1Radius>windowX Then
+  b1px=2*(windowX-boss1Radius)-b1px
+  b1vx=-b1vx
+ElseIf b1px-boss1Radius<0 Then
+  b1px=2*boss1Radius-b1px
+  b1vx=-b1vx
+EndIf
+If b1py+boss1Radius>windowY Then
+  b1py=2*(windowY-boss1Radius)-b1py
+  b1vy=-b1vy
+ElseIf b1py-boss1Radius<0 Then
+  b1py=2*boss1Radius-b1py
+  b1vy=-b1vy
+EndIf
+
+Shapes.Move(boss1,b1px-boss1Radius,b1py-boss1Radius)
+
+b1r=3*phase+b1r+6
+If b1r=360 Then
+  b1r=0
+EndIf
+Shapes.Rotate(boss1,b1r)
+
+If Math.Abs(ax)<friction Then
+  If Math.Abs(vx)>friction Then
+    vx=vx-(friction*Math.Abs(vx)/vx)
+  Else
+    vx=0
+  EndIf
+Else
+  vx=vx+ax-(friction*Math.Abs(ax)/ax)
+EndIf
+
+If Math.Abs(ay)<friction Then
+  If Math.Abs(vy)>friction Then
+    vy=vy-(friction*Math.Abs(vy)/vy)
+  Else
+    vy=0
+  EndIf
+Else
+  vy=vy+ay-(friction*Math.Abs(ay)/ay)
+EndIf
+
+If Math.Abs(vx)>speedCap Then
+  vx=speedCap*Math.Abs(vx)/vx
+EndIf
+
+If Math.Abs(vy)>speedCap Then
+  vy=speedCap*Math.Abs(vy)/vy
+EndIf
+
+px=px+vx
+py=py+vy
+
+If px<tankRadius*tankSpriteScaleUp Then
+  px=tankRadius*tankSpriteScaleUp
+  vx=0
+ElseIf px>windowX-(tankRadius*tankSpriteScaleUp) Then
+  px=windowX-(tankRadius*tankSpriteScaleUp)
+  vx=0
+EndIf
+
+If py<tankRadius*tankSpriteScaleUp Then
+  py=tankRadius*tankSpriteScaleUp
+  vy=0
+ElseIf py>windowY-(tankRadius*tankSpriteScaleUp) Then
+  py=windowY-(tankRadius*tankSpriteScaleUp)
+  vy=0
+EndIf
+
+Shapes.Move(base,px-(spriteSizeX/2),py-(spriteSizeY/2))
+Shapes.Move(turret,px-(spriteSizeX/2),py-(spriteSizeY/2))
+Shapes.Move(turretF,px-(spriteSizeX/2),py-(spriteSizeY/2))
+Shapes.Move(turretR,px-(spriteSizeX/2),py-(spriteSizeY/2))
+
+If px-GraphicsWindow.MouseX=0 Then
+  If py-GraphicsWindow.MouseY>0 Then
+    tr=90
+  Else
+    tr=270
+  EndIf
+ElseIf py-GraphicsWindow.MouseY=0 Then
+  If px-GraphicsWindow.MouseX>0 Then
+    tr=0
+  Else
+    tr=180
+  EndIf
+Else
+  tr=90-90*(px-GraphicsWindow.MouseX)/Math.Abs(px-GraphicsWindow.MouseX)+((px-GraphicsWindow.MouseX)/Math.Abs(px-GraphicsWindow.MouseX)*((py-GraphicsWindow.MouseY)/Math.Abs(py-GraphicsWindow.MouseY)*Math.GetDegrees(Math.ArcTan(Math.Abs(py-GraphicsWindow.MouseY)/Math.Abs(px-GraphicsWindow.MouseX)))))
+EndIf
+
+Shapes.Rotate(turret,tr)
+Shapes.Rotate(turretF,tr)
+Shapes.Rotate(turretR,tr)
+
+rC=rC+2*(Math.Abs(ax)+Math.Abs(ay))+3
+If rC=360 Then
+  rC=0
+EndIf
+Shapes.Rotate(base,rC)
+
+If reload>0 Then
+  reload=reload-1
+EndIf
+
+If Math.SquareRoot(Math.Power(b1px-px,2)+Math.Power(b1py-py,2))<=(boss1Radius*boss1ScaleUp)+(tankRadius) And damageCooldown=0 Then
+  tankHealth=tankHealth-1
+  damageCooldown=damageCooldownTime
+  Shapes.SetOpacity(base,50)
+  Shapes.SetOpacity(turret,50)
+  Shapes.SetOpacity(turretF,50)
+  Shapes.SetOpacity(turretR,50)
+  Sound.Play(death)
+ElseIf damageCooldown>0 Then
+  damageCooldown=damageCooldown-1
+ElseIf damageCooldown=0 Then
+  Shapes.SetOpacity(base,100)
+  Shapes.SetOpacity(turret,100)
+  Shapes.SetOpacity(turretF,100)
+  Shapes.SetOpacity(turretR,100)
+  Sound.Stop(death)
+EndIf
+
+If mouseClicked=0 Then
+  Shapes.ShowShape(turret)
+  Shapes.HideShape(turretR)
+  Shapes.HideShape(turretF)
+ElseIf reload>0 Then
+  Shapes.HideShape(turret)
+  Shapes.ShowShape(turretR)
+  Shapes.HideShape(turretF)
+Else
+  Shapes.HideShape(turret)
+  Shapes.HideShape(turretR)
+  Shapes.ShowShape(turretF)
+  bullets[bulletNum]=Shapes.AddImage(bulletIm)
+  Shapes.Rotate(bullets[bulletNum],tr)
+  Shapes.Move(bullets[bulletNum],px-16,py-16)
+  bulletAccCoeff=bulletSpeed/Math.SquareRoot(((px-GraphicsWindow.MouseX)*(px-GraphicsWindow.MouseX))+((py-GraphicsWindow.MouseY)*(py-GraphicsWindow.MouseY)))
+  bvx[bulletNum]=(px-GraphicsWindow.MouseX)*bulletAccCoeff
+  bvy[bulletNum]=(py-GraphicsWindow.MouseY)*bulletAccCoeff
+  bulletsExist[bulletNum]=1
+  If bulletNum=numBullets-1 Then
+    bulletNum=0
+  Else
+    bulletNum=bulletNum+1
+  EndIf
+  reload=reloadTime
+EndIf
+
+Shapes.HideShape(lightning1)
+For i=0 To 299
+  If bulletsExist[i]=1 Then
+    Shapes.Move(bullets[i],Shapes.GetLeft(bullets[i])-bvx[i],Shapes.GetTop(bullets[i])-bvy[i])
+    If Math.SquareRoot(Math.Power(Shapes.GetLeft(bullets[i])-b1px+16,2)+Math.Power(Shapes.GetTop(bullets[i])-b1py+16,2))<=boss1Radius*boss1ScaleUp Then
+      Shapes.Remove(bullets[i])
+      bulletsExist[i]=0
+      boss1Health=boss1Health-1
+      If(5-Math.Ceiling(4*boss1Health/boss1TotalHealth))>phase Then
+        phase=phase+1
+        Shapes.Remove(boss1)
+        boss1=Shapes.AddImage(bossPhases[phase])
+        Shapes.Zoom(boss1,boss1ScaleUp,boss1ScaleUp)
+        Shapes.Move(boss1,b1px-boss1Radius,b1py-boss1Radius)
+        Shapes.Remove(lightning1)
+        lightning1=Shapes.AddImage(lightning1Im)
+        Shapes.Zoom(lightning1,2,2)
+      EndIf
+      Shapes.ShowShape(lightning1)
+      Shapes.Move(lightning1,b1px-boss1Radius,b1py-boss1Radius)
+      Shapes.Rotate(lightning1,Math.GetRandomNumber(360))
+    ElseIf Shapes.GetLeft(bullets[i])>windowX Or Shapes.GetLeft(bullets[i])<0 Or Shapes.GetTop(bullets[i])>windowY Or Shapes.GetTop(bullets[i])<0 Then
+      Shapes.Remove(bullets[i])
+      bulletsExist[i]=0
+    EndIf
+  EndIf
+EndFor
+
+If Math.GetRandomNumber(Math.Floor(100/phase))=1 Then
+  enemyOrbs[orbNum]=Shapes.AddImage(orb1Im)
+  Shapes.Zoom(enemyOrbs[orbNum],0,0)
+  enemyOrbsExist[orbNum]=1
+  Shapes.Move(enemyOrbs[orbNum],Math.GetRandomNumber(windowX+1)-1,Math.GetRandomNumber(windowY+1)-1)
+  orbCoolDown[orbNum]=100
+  orbNum=orbNum+1
+  If orbNum=300 Then
+    orbNum=0
+  EndIf
+EndIf
+
+For i=0 To 299
+  If enemyOrbsExist[i]=1 Then
+    If orbCoolDown[i]>0 Then
+      orbCoolDown[i]=orbCoolDown[i]-1
+      Shapes.Zoom(enemyOrbs[i],1-(orbCoolDown[i]/100),1-(orbCoolDown[i]/100))
+      If orbCoolDown[i]=0 Then
+        ovx[i]=10/Math.SquareRoot(Math.Power(px-Shapes.GetLeft(enemyOrbs[i]),2)+Math.Power(py-Shapes.GetTop(enemyOrbs[i]),2))*(px-Shapes.GetLeft(enemyOrbs[i]))
+        ovy[i]=10/Math.SquareRoot(Math.Power(px-Shapes.GetLeft(enemyOrbs[i]),2)+Math.Power(py-Shapes.GetTop(enemyOrbs[i]),2))*(py-Shapes.GetTop(enemyOrbs[i]))
+      EndIf
+    Else
+      Shapes.Move(enemyOrbs[i],Shapes.GetLeft(enemyOrbs[i])+ovx[i],Shapes.GetTop(enemyOrbs[i])+ovy[i])
+      If Shapes.GetLeft(enemyOrbs[i])>windowX-32 Or Shapes.GetLeft(enemyOrbs[i])<0 Or Shapes.GetTop(enemyOrbs[i])>windowY-32 Or Shapes.GetTop(enemyOrbs[i])<0 Then
+        Shapes.Remove(enemyOrbs[i])
+        enemyOrbsExist[i]=0
+      ElseIf Math.SquareRoot(Math.Power(Shapes.GetLeft(enemyOrbs[i])+16-px,2)+Math.Power(Shapes.GetTop(enemyOrbs[i])+16-py,2))<=16+(tankRadius*tankSpriteScaleUp) And damageCooldown=0 Then
+        tankHealth=tankHealth-1
+        damageCooldown=damageCooldownTime
+        Shapes.SetOpacity(base,50)
+        Shapes.SetOpacity(turret,50)
+        Shapes.SetOpacity(turretF,50)
+        Shapes.SetOpacity(turretR,50)
+        Sound.Play(death)
+      EndIf
+    EndIf
+  EndIf
+EndFor
+
+Program.Delay(tickDelay)
+  
+EndWhile
+
+Sound.Stop(bossMusic1)
+Sound.Stop(bossMusic2)
+
+'Subroutines
+Sub kDown
+  If GraphicsWindow.LastKey="W" Then 
+    wPressed=1
+  ElseIf GraphicsWindow.LastKey="S" Then
+    sPressed=1
+  ElseIf GraphicsWindow.LastKey="A" Then
+    aPressed=1
+  ElseIf GraphicsWindow.LastKey="D" Then
+    dPressed=1
+  EndIf
+  ax=(dPressed-aPressed)*acceleration
+  ay=(sPressed-wPressed)*acceleration
+EndSub
+
+Sub kUp
+  If GraphicsWindow.LastKey="W" Then 
+    wPressed=0
+  ElseIf GraphicsWindow.LastKey="S" Then
+    sPressed=0
+  ElseIf GraphicsWindow.LastKey="A" Then
+    aPressed=0
+  ElseIf GraphicsWindow.LastKey="D" Then
+    dPressed=0
+  EndIf
+  ax=(dPressed-aPressed)*acceleration
+  ay=(sPressed-wPressed)*acceleration
+EndSub
+
+Sub mDown
+  mouseClicked=1
+EndSub
+
+Sub mUp
+  mouseClicked=0
+EndSub
+
